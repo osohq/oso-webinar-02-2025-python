@@ -1,0 +1,74 @@
+{
+  "orders": [
+    {
+      "id": 1,
+      "state": "submitted",
+      "seller_id": 1,
+      "buyer_id": 2,
+      "delivery_provider_id": 3
+    },
+    {
+      "id": 2,
+      "state": "submitted",
+      "seller_id": 1,
+      "buyer_id": 4,
+      "delivery_provider_id": 3
+    },
+    {
+      "id": 3,
+      "state": "accepted",
+      "seller_id": 2,
+      "buyer_id": 1,
+      "delivery_provider_id": 3
+    },
+    {
+      "id": 4,
+      "state": "fulfilled",
+      "seller_id": 2,
+      "buyer_id": 5,
+      "delivery_provider_id": 4
+    },
+    {
+      "id": 5,
+      "state": "shipped",
+      "seller_id": 3,
+      "buyer_id": 1,
+      "delivery_provider_id": 4
+    },
+    {
+      "id": 6,
+      "state": "delivered",
+      "seller_id": 3,
+      "buyer_id": 2,
+      "delivery_provider_id": 4
+    },
+    {
+      "id": 7,
+      "state": "complete",
+      "seller_id": 4,
+      "buyer_id": 3,
+      "delivery_provider_id": 5
+    },
+    {
+      "id": 8,
+      "state": "cancelled",
+      "seller_id": 4,
+      "buyer_id": 5,
+      "delivery_provider_id": 5
+    },
+    {
+      "id": 9,
+      "state": "rejected",
+      "seller_id": 5,
+      "buyer_id": 4,
+      "delivery_provider_id": 5
+    },
+    {
+      "id": 10,
+      "state": "backorder",
+      "seller_id": 5,
+      "buyer_id": 3,
+      "delivery_provider_id": 3
+    }
+  ]
+}

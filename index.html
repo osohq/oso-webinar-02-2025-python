@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Order State Manager</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+      }
+      .container {
+        max-width: 600px;
+        margin: auto;
+      }
+      .form-group {
+        margin-bottom: 15px;
+      }
+      label {
+        display: block;
+        margin-bottom: 5px;
+      }
+      select,
+      button {
+        padding: 10px;
+        width: 100%;
+      }
+      .message {
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Order State Manager</h1>
+      <div class="form-group">
+        <label for="orderId">Order ID:</label>
+        <input type="number" id="orderId" required />
+      </div>
+      <div class="form-group">
+        <label for="user">User:</label>
+        <input type="text" id="user" required />
+      </div>
+      <div class="form-group">
+        <label for="company">Company:</label>
+        <input type="text" id="company" required />
+      </div>
+      <div class="form-group">
+        <label for="action">Select Action:</label>
+        <select id="action" required>
+          <option value="submit">Submit</option>
+          <option value="accept">Accept</option>
+          <option value="fulfill">Fulfill</option>
+          <option value="ship">Ship</option>
+          <option value="deliver">Deliver</option>
+          <option value="complete">Complete</option>
+          <option value="cancel">Cancel</option>
+          <option value="reject">Reject</option>
+        </select>
+      </div>
+      <button id="transitionButton">Transition Order</button>
+      <div class="message" id="message"></div>
+    </div>
+
+    <script>
+      document
+        .getElementById("transitionButton")
+        .addEventListener("click", async () => {
+          const orderId = document.getElementById("orderId").value;
+          const action = document.getElementById("action").value;
+          const messageDiv = document.getElementById("message");
+          const user = document.getElementById("user").value;
+          const company = document.getElementById("company").value;
+
+          try {
+            const response = await fetch(
+              `http://localhost:5000/order/${orderId}/transition`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ action, user, company }),
+              }
+            );
+
+            const data = await response.json();
+            console.log(data);
+            if (response.ok) {
+              messageDiv.textContent = `Success: ${data.message}. New State: ${data.new_state}`;
+              messageDiv.style.color = "green";
+            } else {
+              messageDiv.textContent = `Error: ${data.error}`;
+              messageDiv.style.color = "red";
+            }
+          } catch (error) {
+            messageDiv.textContent = `Error: ${error.message}`;
+            messageDiv.style.color = "red";
+          }
+        });
+    </script>
+    <h1>Test API</h1>
+    <button onclick="sendData()">Send Data</button>
+    <div id="response"></div>
+
+    <script>
+      async function sendData() {
+        try {
+          const response = await fetch("http://localhost:5000/api/data", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              message: "Hello from frontend!",
+            }),
+          });
+          const data = await response.json();
+          document.getElementById("response").textContent = JSON.stringify(
+            data,
+            null,
+            2
+          );
+        } catch (error) {
+          console.error("Error:", error);
+          document.getElementById("response").textContent =
+            "Error: " + error.message;
+        }
+      }
+    </script>
+  </body>
+</html>
