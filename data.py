@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
+from typing import List, Tuple
 
 # Hardcoded users and their roles
 # TODO(1): Scale the app to include Zombo users. You'll see their data is
