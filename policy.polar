@@ -9,7 +9,6 @@ resource Organization {
     "member" if "admin";
 
     "create_order" if "sales";
-    # TODO(6): Admins can create orders.
     "create_order" if "admin";
 }
 

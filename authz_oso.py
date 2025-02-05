@@ -1,7 +1,7 @@
 from flask import jsonify, request
 from functools import wraps
 from pathlib import Path
-from data import get_facts
+from order_service import OrderService
 from oso_cloud import Oso, Value
 
 # Instantiate the Oso Cloud client
@@ -23,7 +23,7 @@ def authorize_order_action(action: str):
             user = Value("User", request.user.username)
             order = Value("Order", kwargs.get("order_id"))
 
-            if not oso.authorize(user, action, order, get_facts()):
+            if not oso.authorize(user, action, order, OrderService.get_facts()):
                 return jsonify({"error": f"Permission denied for {action}"}), 403
 
             return f(*args, **kwargs)

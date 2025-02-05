@@ -1,7 +1,9 @@
 import json
 from typing import Dict
 import logging
-from data import Order, OrderStatus
+from data import USERS, Order, OrderStatus
+from typing import List, Tuple
+from oso_cloud import Value
 
 # Order management
 class OrderService:
@@ -42,3 +44,30 @@ class OrderService:
         else:
             logging.error("Order ID %s not found", order_id)
 
+
+    # This is just a convenience feature for the demo; in a real app you would
+    # use Oso's centralized or localized authorization data.
+    @staticmethod
+    def get_facts() -> List[Tuple]:
+        org_facts = [
+            (
+                "has_role",
+                Value("User", key),
+                data["role"],
+                Value("Organization", data["org"]),
+            )
+            for key, data in USERS.items()
+        ]
+
+        orders = OrderService.load_orders()
+
+        order_facts = [
+            (relation, Value("Order", data["id"]), field, Value(type, data[field]))
+            for _, data in orders.items()
+            for relation, field, type in [
+                ("has_relation", "org", "Organization"),
+                ("has_relation", "sold_by", "User"),
+            ]
+        ]
+
+        return org_facts + order_facts
