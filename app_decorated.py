@@ -7,7 +7,11 @@ from rich.logging import RichHandler
 # Fake databasey stuff
 from data import USERS, User, Order, OrderWithPermissions, OrderStatus
 from permissions import RBAC
+
+# Fake orders service
 from order_service import OrderService
+
+# authz functions (decorators)
 from decorators import require_permission, require_same_org, require_user_is_owner_if_sales
 
 # App configuration
@@ -25,7 +29,6 @@ def setup_logging() -> None:
         handlers=[RichHandler(rich_tracebacks=True)],
     )
 
-
 # Initialize services
 app = create_app()
 
@@ -37,9 +40,6 @@ def attach_user():
         role=request.headers.get("X-User-Role"),
         org=request.headers.get("X-User-Org"),
     )
-
-
-# TODO(3): We also need to add authorization to our API endpoints.
 
 
 # Routes

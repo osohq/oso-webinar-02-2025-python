@@ -7,8 +7,12 @@ from rich.logging import RichHandler
 # Fake databasey stuff
 from data import USERS, User, Order, OrderWithPermissions, OrderStatus
 from permissions import RBAC
+
+# Fake orders service
 from order_service import OrderService
-from authz_oso import require_permission
+
+# authz function (decorator)
+from authz_oso import authorize_order_action
 
 # App configuration
 def create_app() -> Flask:
@@ -37,9 +41,6 @@ def attach_user():
         role=request.headers.get("X-User-Role"),
         org=request.headers.get("X-User-Org"),
     )
-
-
-# TODO(3): We also need to add authorization to our API endpoints.
 
 
 # Routes
@@ -77,7 +78,7 @@ def list_orders():
 
 
 @app.route("/orders", methods=["POST"])
-@require_permission("create_order")
+@authorize_order_action("create_order")
 def create_order():
     orders = OrderService.load_orders()
     order_data = request.json
@@ -101,7 +102,7 @@ def create_order():
 
 
 @app.route("/orders/<order_id>", methods=["DELETE"])
-@require_permission("delete_order")
+@authorize_order_action("delete_order")
 def delete_order(order_id: str):
     orders = OrderService.load_orders()
     del orders[order_id]
@@ -110,7 +111,7 @@ def delete_order(order_id: str):
 
 
 @app.route("/orders/<order_id>/cancel", methods=["POST"])
-@require_permission("cancel_order")
+@authorize_order_action("cancel_order")
 def cancel_order(order_id: str):
     orders = OrderService.get_order(order_id)
     order = OrderService.update_order_status(order_id, OrderStatus.CANCELLED)
@@ -118,7 +119,7 @@ def cancel_order(order_id: str):
 
 
 @app.route("/orders/<order_id>/fulfill", methods=["POST"])
-@require_permission("fulfill_order")
+@authorize_order_action("fulfill_order")
 def fulfill_order(order_id: str):
     order = OrderService.update_order_status(order_id, OrderStatus.FULFILLED)
     return jsonify(order)
