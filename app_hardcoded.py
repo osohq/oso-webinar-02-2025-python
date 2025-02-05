@@ -1,6 +1,4 @@
-from enum import Enum
 from typing import Dict
-from dataclasses import dataclass
 import json
 import logging
 from functools import wraps
@@ -9,50 +7,9 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from rich.logging import RichHandler
 
-# TODO(1): Scale the app to include Zombo users. You'll see their data is
-# visible to Acme users and vice versa.
-
-# Hardcoded users and their roles
-USERS = {
-    "AcmeWarehouse": {"org": "Acme", "role": "warehouse"},
-    "AcmeSales1": {"org": "Acme", "role": "sales"},
-    "AcmeSales2": {"org": "Acme", "role": "sales"},
-    "AcmeAdmin": {"org": "Acme", "role": "admin"},
-    # "ZomboWarehouse": {"org": "Zombo", "role": "warehouse"},
-    # "ZomboSales1": {"org": "Zombo", "role": "sales"},
-    # "ZomboSales2": {"org": "Zombo", "role": "sales"},
-    # "ZomboAdmin": {"org": "Zombo", "role": "admin"},
-}
-
-
-# Type definitions
-@dataclass
-class User:
-    username: str
-    org: str
-    role: str
-
-
-@dataclass
-class Order:
-    id: str
-    org: str
-    sold_by: str
-    customer: str
-    items: list
-    status: str
-
-
-@dataclass
-class OrderWithPermissions(Order):
-    permissions: list
-
-
-class OrderStatus(Enum):
-    PENDING = "pending"
-    CANCELLED = "cancelled"
-    FULFILLED = "fulfilled"
-
+# Fake databasey stuff
+from data import USERS, User, Order, OrderWithPermissions, OrderStatus
+from permissions import RBAC, RBACPermission
 
 # App configuration
 def create_app() -> Flask:
@@ -68,7 +25,6 @@ def setup_logging() -> None:
         format="%(message)s",
         handlers=[RichHandler(rich_tracebacks=True)],
     )
-
 
 # Order management
 class OrderService:
@@ -108,7 +64,6 @@ class OrderService:
 # Initialize services
 app = create_app()
 
-
 # Request hooks
 @app.before_request
 def attach_user():
@@ -117,87 +72,6 @@ def attach_user():
         role=request.headers.get("X-User-Role"),
         org=request.headers.get("X-User-Org"),
     )
-
-
-class RBACPermission(Enum):
-    """Represents the possible permissions a user can have."""
-
-    VIEW_ORDERS = "view_orders"
-    FULFILL_ORDER = "fulfill_order"
-    CREATE_ORDER = "create_order"
-    DELETE_ORDER = "delete_order"
-    CANCEL_ORDER = "cancel_order"
-
-
-# Role-based permissions
-RBAC = {
-    "warehouse": [RBACPermission.VIEW_ORDERS, RBACPermission.FULFILL_ORDER],
-    "sales": [
-        RBACPermission.VIEW_ORDERS,
-        RBACPermission.CREATE_ORDER,
-        RBACPermission.CANCEL_ORDER,
-    ],
-    "admin": [
-        RBACPermission.VIEW_ORDERS,
-        RBACPermission.CANCEL_ORDER,
-        RBACPermission.DELETE_ORDER,
-        RBACPermission.FULFILL_ORDER,
-    ],
-}
-
-
-# Route decorators
-def require_permission(permission):
-    def decorator(f):
-        @wraps(f)
-        def decorated_function(*args, **kwargs):
-            user_role = request.user["role"]
-            if user_role is None or user_role not in RBAC:
-                return (
-                    jsonify(
-                        {
-                            "error": "Permission denied. User role is undefined or invalid."
-                        }
-                    ),
-                    403,
-                )
-            if permission not in RBAC[user_role]:
-                return (
-                    jsonify(
-                        {
-                            "error": f"Permission denied. Role '{user_role}' cannot {permission}"
-                        }
-                    ),
-                    403,
-                )
-            return f(*args, **kwargs)
-
-        return decorated_function
-
-    return decorator
-
-
-# TODO(3): We also need to add authorization to our API endpoints.
-
-# def require_same_org():
-#     def decorator(f):
-#         @wraps(f)
-#         def decorated_function(*args, **kwargs):
-#             user_org = request.user["org"]
-#             order_id = kwargs.get("order_id")
-#             orders = orders = OrderService.load_orders()
-#             if order_id not in orders:
-#                 return jsonify({"error": "Order not found"}), 404
-#             if orders[order_id]["org"] != user_org:
-#                 return (
-#                     jsonify({"error": "Unauthorized to access order from another org"}),
-#                     403,
-#                 )
-#             return f(*args, **kwargs)
-
-#         return decorated_function
-
-#     return decorator
 
 
 # Routes
@@ -213,7 +87,7 @@ def list_orders():
         # each user can only see their own org's orders.
 
         # if order["org"] != user_org:
-        #     continue
+        #    continue
 
         order_permissions = [p.value for p in RBAC[user_role]]
 
@@ -235,8 +109,17 @@ def list_orders():
 
 
 @app.route("/orders", methods=["POST"])
-@require_permission("create_order")
 def create_order():
+    # Get the user's permissions based on their role
+    user_role = request.user.role
+    permissions = [p.value for p in RBAC[user_role]]
+    # Verify that the user has the "delete_order" permission
+    if not "create_order" in permissions:
+        return (
+            jsonify({"error": f"Permission denied. Role '{user_role}' cannot create orders"}),
+            403,
+        )
+ 
     orders = OrderService.load_orders()
     order_data = request.json
 
@@ -259,11 +142,28 @@ def create_order():
 
 
 @app.route("/orders/<order_id>", methods=["DELETE"])
-# TODO(3): Don't let users from other orgs interact with each other's orders.
-# @require_same_org()
-@require_permission("delete_order")
 def delete_order(order_id: str):
+    # Get the user's permissions based on their role
+    user_role = request.user.role
+    permissions = [p.value for p in RBAC[user_role]]
+    # Verify that the user has the "delete_order" permission
+    if not "delete_order" in permissions:
+        return (
+            jsonify({"error": f"Permission denied. Role '{user_role}' cannot delete orders"}),
+            403,
+        )
+
+    # Users can only delete orders in their own org.
+    user_org = request.user.org
     orders = OrderService.load_orders()
+    order_org = orders[order_id]["org"]
+
+    if user_org != order_org:
+        return (
+            jsonify({"error": f"Permission denied. User org ({user_org}) does not match order org ({order_org})"}),
+            403,
+        )
+
     del orders[order_id]
     OrderService.save_orders(orders)
     return "", 204
@@ -271,17 +171,33 @@ def delete_order(order_id: str):
 
 @app.route("/orders/<order_id>/cancel", methods=["POST"])
 # TODO(3): Don't let users from other orgs interact with each other's orders.
-# @require_same_org()
-@require_permission("cancel_order")
 def cancel_order(order_id: str):
+    # Get the user's permissions based on their role
+    user_role = request.user.role
+    permissions = [p.value for p in RBAC[user_role]]
+    # Verify that the user has the "cancel_order" permission
+    if not "cancel_order" in permissions:
+        return (
+            jsonify({"error": f"Permission denied. Role '{user_role}' cannot cancel orders"}),
+            403,
+        )
+
+    # Get order info
     orders = OrderService.load_orders()
     order = orders[order_id]
 
-    # TODO(4): We then discover that sales members can cancel other sales
-    # members' orders. Prevent that from happening.
+    # Users can only cancel orders in their own org.
+    user_org = request.user.org
+    order_org = order["org"]
+    if user_org != order_org:
+        return (
+            jsonify({"error": f"Permission denied. User org ({user_org}) does not match order org ({order_org})"}),
+            403,
+        )
 
-    # if request.user.role == "sales" and order["sold_by"] != request.user.username:
-    #     return jsonify({"error": "Sales users can only cancel their own orders"}), 403
+    # Salespeople should only be able to cancel their own orders
+    if request.user.role == "sales" and order["sold_by"] != request.user.username:
+        return jsonify({"error": "Sales users can only cancel their own orders"}), 403
 
     order = OrderService.update_order_status(order_id, OrderStatus.CANCELLED)
     return jsonify(order)
@@ -289,9 +205,30 @@ def cancel_order(order_id: str):
 
 @app.route("/orders/<order_id>/fulfill", methods=["POST"])
 # TODO(3): Don't let users from other orgs interact with each other's orders.
-# @require_same_org()
-@require_permission("fulfill_order")
 def fulfill_order(order_id: str):
+    # Get the user's permissions based on their role
+    user_role = request.user.role
+    permissions = [p.value for p in RBAC[user_role]]
+    # Verify that the user has the "cancel_order" permission
+    if not "fulfill_order" in permissions:
+        return (
+            jsonify({"error": f"Permission denied. Role '{user_role}' cannot cancel orders"}),
+            403,
+        )
+
+    # Get order info
+    orders = OrderService.load_orders()
+    order = orders[order_id]
+
+    # Users can only cancel orders in their own org.
+    user_org = request.user.org
+    order_org = order["org"]
+    if user_org != order_org:
+        return (
+            jsonify({"error": f"Permission denied. User org ({user_org}) does not match order org ({order_org})"}),
+            403,
+        )
+
     order = OrderService.update_order_status(order_id, OrderStatus.FULFILLED)
     return jsonify(order)
 

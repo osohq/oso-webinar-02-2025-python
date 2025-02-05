@@ -8,7 +8,7 @@ from rich.logging import RichHandler
 from data import USERS, User, Order, OrderWithPermissions, OrderStatus
 from permissions import RBAC
 from order_service import OrderService
-from authz_oso import require_permission
+from decorators import require_permission, require_same_org, require_user_is_owner_if_sales
 
 # App configuration
 def create_app() -> Flask:
@@ -102,6 +102,7 @@ def create_order():
 
 @app.route("/orders/<order_id>", methods=["DELETE"])
 @require_permission("delete_order")
+@require_same_org()
 def delete_order(order_id: str):
     orders = OrderService.load_orders()
     del orders[order_id]
@@ -111,6 +112,8 @@ def delete_order(order_id: str):
 
 @app.route("/orders/<order_id>/cancel", methods=["POST"])
 @require_permission("cancel_order")
+@require_same_org()
+@require_user_is_owner_if_sales()
 def cancel_order(order_id: str):
     orders = OrderService.get_order(order_id)
     order = OrderService.update_order_status(order_id, OrderStatus.CANCELLED)
@@ -119,6 +122,7 @@ def cancel_order(order_id: str):
 
 @app.route("/orders/<order_id>/fulfill", methods=["POST"])
 @require_permission("fulfill_order")
+@require_same_org()
 def fulfill_order(order_id: str):
     order = OrderService.update_order_status(order_id, OrderStatus.FULFILLED)
     return jsonify(order)

@@ -1,0 +1,42 @@
+{
+  "companies": {
+    "1": {
+      "name": "TechGear Sellers",
+      "users": [
+        {
+          "name": "Sarah Chen",
+          "permissions": ["can_manage_orders", "can_manage_crm"]
+        },
+        { "name": "Mike Rodriguez", "permissions": ["can_manage_fulfillment"] }
+      ]
+    },
+    "2": {
+      "name": "Global Electronics",
+      "users": [
+        { "name": "David Kim", "permissions": ["can_manage_orders_received"] },
+        { "name": "Lisa Thompson", "permissions": ["can_manage_crm"] }
+      ]
+    },
+    "3": {
+      "name": "FastShip Logistics",
+      "users": [
+        { "name": "James Wilson", "permissions": ["can_manage_fulfillment"] },
+        { "name": "Emma Davis", "permissions": ["can_manage_orders"] }
+      ]
+    },
+    "4": {
+      "name": "BuyerCorp",
+      "users": [
+        { "name": "Alex Martinez", "permissions": ["can_manage_orders_sent"] },
+        { "name": "Rachel Foster", "permissions": ["can_manage_orders_sent"] }
+      ]
+    },
+    "5": {
+      "name": "Swift Delivery",
+      "users": [
+        { "name": "Tom Baker", "permissions": ["can_manage_fulfillment"] },
+        { "name": "Priya Patel", "permissions": ["can_manage_orders"] }
+      ]
+    }
+  }
+}

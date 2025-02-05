@@ -1,3 +1,5 @@
+from typing import Dict
+import json
 import logging
 
 from flask import Flask, jsonify, request
@@ -7,8 +9,9 @@ from rich.logging import RichHandler
 # Fake databasey stuff
 from data import USERS, User, Order, OrderWithPermissions, OrderStatus
 from permissions import RBAC
-from order_service import OrderService
-from authz_oso import require_permission
+
+# Import authz functions
+from authz import has_permission, has_same_org, user_is_owner_if_in_sales
 
 # App configuration
 def create_app() -> Flask:
@@ -25,6 +28,40 @@ def setup_logging() -> None:
         handlers=[RichHandler(rich_tracebacks=True)],
     )
 
+# Order management
+class OrderService:
+    @staticmethod
+    def load_orders() -> Dict[str, Order]:
+        try:
+            with open("orders.json", "r") as f:
+                return json.load(f)
+        except FileNotFoundError:
+            logging.warning("orders.json not found, returning empty orders")
+            return {}
+
+    @staticmethod
+    def save_orders(orders: Dict[str, dict]) -> None:
+        with open("orders.json", "w") as f:
+            json.dump(orders, f, indent=4)
+
+    @staticmethod
+    def reset_orders():
+        try:
+            with open("orders_backup.json", "r") as f:
+                orders_dict = json.load(f)
+                OrderService.save_orders(orders_dict)
+        except FileNotFoundError:
+            return {}
+
+    @staticmethod
+    def update_order_status(order_id: str, status: OrderStatus) -> None:
+        orders = OrderService.load_orders()
+        if order_id in orders:
+            orders[order_id]["status"] = status.value
+            OrderService.save_orders(orders)
+        else:
+            logging.error("Order ID %s not found", order_id)
+
 
 # Initialize services
 app = create_app()
@@ -37,9 +74,6 @@ def attach_user():
         role=request.headers.get("X-User-Role"),
         org=request.headers.get("X-User-Org"),
     )
-
-
-# TODO(3): We also need to add authorization to our API endpoints.
 
 
 # Routes
@@ -77,8 +111,15 @@ def list_orders():
 
 
 @app.route("/orders", methods=["POST"])
-@require_permission("create_order")
 def create_order():
+    # Get the user's permissions based on their role
+    user = request.user
+    if not has_permission(user, "create_order"):
+        return (
+            jsonify({"error": f"Permission denied. Role '{user.role}' cannot create orders"}),
+            403,
+        )
+ 
     orders = OrderService.load_orders()
     order_data = request.json
 
@@ -101,25 +142,83 @@ def create_order():
 
 
 @app.route("/orders/<order_id>", methods=["DELETE"])
-@require_permission("delete_order")
 def delete_order(order_id: str):
+    # Get the user's permissions based on their role
+    user: User  = request.user
+    if not has_permission(user, "delete_order"):
+        return (
+            jsonify({"error": f"Permission denied. Role '{user.role}' cannot delete orders"}),
+            403,
+        )
+ 
+    # Users can only delete orders in their own org.
     orders = OrderService.load_orders()
+    order = orders[order_id]
+
+    if not has_same_org(user, order):
+        return (
+            jsonify({"error": "Permission denied. User and order are in different orgs"}),
+            403,
+        )
+
     del orders[order_id]
     OrderService.save_orders(orders)
     return "", 204
 
 
 @app.route("/orders/<order_id>/cancel", methods=["POST"])
-@require_permission("cancel_order")
+# TODO(3): Don't let users from other orgs interact with each other's orders.
 def cancel_order(order_id: str):
-    orders = OrderService.get_order(order_id)
+    # Get the user's permissions based on their role
+    user: User = request.user
+    if not has_permission(user, "cancel_order"):
+        return (
+            jsonify({"error": f"Permission denied. Role '{user.role}' cannot delete orders"}),
+            403,
+        )
+ 
+    # Users can only delete orders in their own org.
+    orders = OrderService.load_orders()
+    order = orders[order_id]
+
+    if not has_same_org(user, order):
+        return (
+            jsonify({"error": "Permission denied. User and order are in different orgs"}),
+            403,
+        )
+
+    # Salespeople can only cancel their own orders
+    if not user_is_owner_if_in_sales(user, order):
+        return jsonify({"error": "Sales users can only cancel their own orders"}), 403
+
     order = OrderService.update_order_status(order_id, OrderStatus.CANCELLED)
     return jsonify(order)
 
 
 @app.route("/orders/<order_id>/fulfill", methods=["POST"])
-@require_permission("fulfill_order")
 def fulfill_order(order_id: str):
+    # Get the user's permissions based on their role
+    user: User = request.user
+    if not has_permission(user, "fulfill_order"):
+        return (
+            jsonify({"error": f"Permission denied. Role '{user.role}' cannot fulfill orders"}),
+            403,
+        )
+ 
+    # Get order info
+    orders = OrderService.load_orders()
+    order: Order = orders[order_id]
+
+    # Users can only fulfill orders in their own org.
+    orders = OrderService.load_orders()
+    order = orders[order_id]
+
+    if not has_same_org(user, order):
+        return (
+            jsonify({"error": "Permission denied. User and order are in different orgs"}),
+            403,
+        )
+
     order = OrderService.update_order_status(order_id, OrderStatus.FULFILLED)
     return jsonify(order)
 
