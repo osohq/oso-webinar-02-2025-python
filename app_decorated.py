@@ -12,7 +12,7 @@ from permissions import RBAC
 from order_service import OrderService
 
 # authz functions (decorators)
-from decorators import require_permission, require_same_org, require_user_is_owner_if_sales
+from authz_decorators import require_permission, require_same_org, require_user_is_owner_if_sales
 
 # App configuration
 def create_app() -> Flask:
