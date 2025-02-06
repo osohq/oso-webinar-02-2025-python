@@ -123,11 +123,11 @@ def delete_order(order_id: str):
     orders = OrderService.load_orders()
     order_org = orders[order_id]["org"]
 
-#    if user_org != order_org:
-#        return (
-#            jsonify({"error": f"Permission denied. User org ({user_org}) does not match order org ({order_org})"}),
-#            403,
-#        )
+    if user_org != order_org:
+        return (
+            jsonify({"error": f"Permission denied. User org ({user_org}) does not match order org ({order_org})"}),
+            403,
+        )
 
     del orders[order_id]
     OrderService.save_orders(orders)
