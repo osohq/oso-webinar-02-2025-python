@@ -110,18 +110,18 @@ def delete_order(order_id: str):
     return "", 204
 
 
+@app.route("/orders/<order_id>/fulfill", methods=["POST"])
+@authorize_order_action("fulfill_order")
+def fulfill_order(order_id: str):
+    order = OrderService.update_order_status(order_id, OrderStatus.FULFILLED)
+    return jsonify(order)
+
+
 @app.route("/orders/<order_id>/cancel", methods=["POST"])
 @authorize_order_action("cancel_order")
 def cancel_order(order_id: str):
     orders = OrderService.get_order(order_id)
     order = OrderService.update_order_status(order_id, OrderStatus.CANCELLED)
-    return jsonify(order)
-
-
-@app.route("/orders/<order_id>/fulfill", methods=["POST"])
-@authorize_order_action("fulfill_order")
-def fulfill_order(order_id: str):
-    order = OrderService.update_order_status(order_id, OrderStatus.FULFILLED)
     return jsonify(order)
 
 

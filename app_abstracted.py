@@ -132,34 +132,6 @@ def delete_order(order_id: str):
     return "", 204
 
 
-@app.route("/orders/<order_id>/cancel", methods=["POST"])
-def cancel_order(order_id: str):
-    # Get the user's permissions based on their role
-    user: User = request.user
-    if not has_permission(user, "cancel_order"):
-        return (
-            jsonify({"error": f"Permission denied. Role '{user.role}' cannot delete orders"}),
-            403,
-        )
- 
-    # Users can only delete orders in their own org.
-    orders = OrderService.load_orders()
-    order = orders[order_id]
-
-    if not has_same_org(user, order):
-        return (
-            jsonify({"error": "Permission denied. User and order are in different orgs"}),
-            403,
-        )
-
-    # Salespeople can only cancel their own orders
-    if not user_is_owner_if_in_sales(user, order):
-        return jsonify({"error": "Sales users can only cancel their own orders"}), 403
-
-    order = OrderService.update_order_status(order_id, OrderStatus.CANCELLED)
-    return jsonify(order)
-
-
 @app.route("/orders/<order_id>/fulfill", methods=["POST"])
 def fulfill_order(order_id: str):
     # Get the user's permissions based on their role
@@ -185,6 +157,34 @@ def fulfill_order(order_id: str):
         )
 
     order = OrderService.update_order_status(order_id, OrderStatus.FULFILLED)
+    return jsonify(order)
+
+
+@app.route("/orders/<order_id>/cancel", methods=["POST"])
+def cancel_order(order_id: str):
+    # Get the user's permissions based on their role
+    user: User = request.user
+    if not has_permission(user, "cancel_order"):
+        return (
+            jsonify({"error": f"Permission denied. Role '{user.role}' cannot delete orders"}),
+            403,
+        )
+ 
+    # Users can only delete orders in their own org.
+    orders = OrderService.load_orders()
+    order = orders[order_id]
+
+    if not has_same_org(user, order):
+        return (
+            jsonify({"error": "Permission denied. User and order are in different orgs"}),
+            403,
+        )
+
+    # Salespeople can only cancel their own orders
+    if not user_is_owner_if_in_sales(user, order):
+        return jsonify({"error": "Sales users can only cancel their own orders"}), 403
+
+    order = OrderService.update_order_status(order_id, OrderStatus.CANCELLED)
     return jsonify(order)
 
 
