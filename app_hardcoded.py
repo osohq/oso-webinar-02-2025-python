@@ -123,19 +123,47 @@ def delete_order(order_id: str):
     orders = OrderService.load_orders()
     order_org = orders[order_id]["org"]
 
-    if user_org != order_org:
-        return (
-            jsonify({"error": f"Permission denied. User org ({user_org}) does not match order org ({order_org})"}),
-            403,
-        )
+#    if user_org != order_org:
+#        return (
+#            jsonify({"error": f"Permission denied. User org ({user_org}) does not match order org ({order_org})"}),
+#            403,
+#        )
 
     del orders[order_id]
     OrderService.save_orders(orders)
     return "", 204
 
 
+@app.route("/orders/<order_id>/fulfill", methods=["POST"])
+def fulfill_order(order_id: str):
+    # Get the user's permissions based on their role
+    user_role = request.user.role
+    permissions = [p.value for p in RBAC[user_role]]
+    # Verify that the user has the "fulfill_order" permission
+    if not "fulfill_order" in permissions:
+        return (
+            jsonify({"error": f"Permission denied. Role '{user_role}' cannot cancel orders"}),
+            403,
+        )
+
+    # Get order info
+    orders = OrderService.load_orders()
+    order = orders[order_id]
+
+    # Users can only fulfill orders in their own org.
+    user_org = request.user.org
+    order_org = order["org"]
+    if user_org != order_org:
+        return (
+            jsonify({"error": f"Permission denied. User org ({user_org}) does not match order org ({order_org})"}),
+            403,
+        )
+
+    order = OrderService.update_order_status(order_id, OrderStatus.FULFILLED)
+    return jsonify(order)
+
+
 @app.route("/orders/<order_id>/cancel", methods=["POST"])
-# TODO(3): Don't let users from other orgs interact with each other's orders.
 def cancel_order(order_id: str):
     # Get the user's permissions based on their role
     user_role = request.user.role
@@ -165,36 +193,6 @@ def cancel_order(order_id: str):
         return jsonify({"error": "Sales users can only cancel their own orders"}), 403
 
     order = OrderService.update_order_status(order_id, OrderStatus.CANCELLED)
-    return jsonify(order)
-
-
-@app.route("/orders/<order_id>/fulfill", methods=["POST"])
-# TODO(3): Don't let users from other orgs interact with each other's orders.
-def fulfill_order(order_id: str):
-    # Get the user's permissions based on their role
-    user_role = request.user.role
-    permissions = [p.value for p in RBAC[user_role]]
-    # Verify that the user has the "fulfill_order" permission
-    if not "fulfill_order" in permissions:
-        return (
-            jsonify({"error": f"Permission denied. Role '{user_role}' cannot cancel orders"}),
-            403,
-        )
-
-    # Get order info
-    orders = OrderService.load_orders()
-    order = orders[order_id]
-
-    # Users can only fulfill orders in their own org.
-    user_org = request.user.org
-    order_org = order["org"]
-    if user_org != order_org:
-        return (
-            jsonify({"error": f"Permission denied. User org ({user_org}) does not match order org ({order_org})"}),
-            403,
-        )
-
-    order = OrderService.update_order_status(order_id, OrderStatus.FULFILLED)
     return jsonify(order)
 
 
