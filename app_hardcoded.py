@@ -142,7 +142,7 @@ def fulfill_order(order_id: str):
     # Verify that the user has the "fulfill_order" permission
     if not "fulfill_order" in permissions:
         return (
-            jsonify({"error": f"Permission denied. Role '{user_role}' cannot cancel orders"}),
+            jsonify({"error": f"Permission denied. Role '{user_role}' cannot fulfill orders"}),
             403,
         )
 

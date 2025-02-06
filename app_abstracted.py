@@ -166,7 +166,7 @@ def cancel_order(order_id: str):
     user: User = request.user
     if not has_permission(user, "cancel_order"):
         return (
-            jsonify({"error": f"Permission denied. Role '{user.role}' cannot delete orders"}),
+            jsonify({"error": f"Permission denied. Role '{user.role}' cannot cancel orders"}),
             403,
         )
  
